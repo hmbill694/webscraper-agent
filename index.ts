@@ -14,7 +14,7 @@ const client = new OpenAIClient(apiKey, 0, orgId, projectId);
 
 const currentUtcDateTime = new Date().toISOString();
 
-const prompt = "What is the smallest distance?";
+const prompt = "How old is the current pope?";
 
 
 try {
@@ -23,8 +23,6 @@ try {
   const planningAgentResponse = getOrThrow(planningAgentResult)
 
   const answerResult = await executePlan(planningAgentResponse)
-
-  console.log(answerResult)
 
 } catch (e) {
   console.error(e);
@@ -61,22 +59,20 @@ async function searchPipeline(searchQuery: string) {
 
   const topThreeSearches = googleSearches.slice(0, 3)
 
-  console.log(`Top 3 searches: ${topThreeSearches}`)
-
   for (const { link } of topThreeSearches) {
     const researchContent = await webScraper.scrapeUrl(link)
 
     if (!researchContent.success) {
       console.log("An error has occured while researching, we could not scrape " + link)
+      console.log(console.log(researchContent.error))
       continue
     }
-
-    console.log(researchContent.data)
 
     const researchAgentResponse = researchAgentExtractor(await researchAgent.run(`
         LINK: ${link}
 
-        HTML: ${researchContent.data}
+        TEXT: 
+        ${researchContent.data}
     `))
 
     if (researchAgentResponse.foundAnswer === "no" || researchAgentResponse.foundAnswer === "partial") {
@@ -101,34 +97,28 @@ async function executePlan(plan: PlanningAgentResponse) {
     return Ok(answer)
   }
 
-  // const answer = plan.subQuestions.reduce((acc, { answer, dependsOn, question }, idx, arr) => {
-  //   const priorQuestions = (idx === 0 ? [] : arr.slice(0, idx))
-
-  //   const priorAnsweredQuestions = priorQuestions
-  //     .map(priorAnswer =>
-  //       `QUESTION: ${priorAnswer.question}\n ANSWER: ${questionTextToQuestionMap[priorAnswer.question] ?? "No answer yet"}`
-  //     ).join("")
-
-  //   const searchResult = await searchPipeline(plan.mainQuestion)
-  //   const { answer: searchAnswer } = getOrThrow(searchResult)
-
-  //   answer = `An answer for question ${idx + 1}`
-
-
-  //   return acc += answer + "\n";
-  // }, "")
-
-  const formatPriorQuestionPrompts = ({ question, answer }: PlanningAgentSubQuestion) => `
-  QUESTION: 
-  ${question}
-
-  ANSWER:
-  ${answer}
-  `
-
-
   for (const [idx, subQuery] of plan.subQuestions.entries()) {
-    return Err("We don't support this yet")
+    const priorQuestions = (idx === 0 ? [] : plan.subQuestions.slice(0, idx))
+
+    const priorAnsweredQuestions = priorQuestions
+      .map(priorAnswer =>
+        `QUESTION: ${priorAnswer.question}\n ANSWER: ${questionTextToQuestionMap[priorAnswer.question] ?? "No answer yet"}`
+      ).join("")
+
+    const searchResult = await searchPipeline(subQuery.question)
+    const { answer: searchAnswer } = getOrThrow(searchResult)
+
+    subQuery.answer = searchAnswer
   }
+
+  console.log(plan.subQuestions.map(ele => `Question ${ele.question} \n Answer: ${ele.answer}`).join("\n"))
+
+  // const formatPriorQuestionPrompts = ({ question, answer }: PlanningAgentSubQuestion) => `
+  // QUESTION: 
+  // ${question}
+
+  // ANSWER:
+  // ${answer}
+  // `
 
 }

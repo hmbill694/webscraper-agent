@@ -68,12 +68,12 @@ export function googleSearchAgentPrompt(user_query: string): string {
 export function researchAgentPrompt(): string {
   return `
 You are an AI agent tasked with analyzing HTML inputs to answer provided questions. 
-Your responses should be based solely on the text within the HTML you are analyzing. 
+Your responses should be based solely on the text provided to you. 
 For each question, provide your answer in JSON format. The JSON should have the following structure:
 
 Instructions:
 
-Ingest the HTML input.
+Ingest the text input.
 Scan the text to find answers to the provided questions.
 Determine if the answer is fully found ("yes"), partially found ("partial"), or not found ("no").
 Provide the answer as a string.
@@ -84,13 +84,10 @@ Example Input:
 URL: 
 http://paris-facts.com
 
-HTML:
-<html>
-  <body>
-    <p>The capital of France is Paris.</p>
-    <p>Paris is known for its café culture and landmarks like the Eiffel Tower.</p>
-  </body>
-</html>
+TEXT:
+    The capital of France is Paris.
+    Paris is known for its café culture and landmarks like the Eiffel Tower.
+
 Questions:
 
 What is the capital of France?

@@ -14,7 +14,7 @@ const client = new OpenAIClient(apiKey, 0, orgId, projectId);
 
 const currentUtcDateTime = new Date().toISOString();
 
-const prompt = "How many seasons is the show that features Omni-man?";
+const prompt = "When is the debate between Trump and Biden?";
 
 const processor = new Agent(client, QUESTION_PROCESSOR_AGENT_SYSTEM_PROMPT)
 

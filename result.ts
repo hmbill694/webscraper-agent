@@ -55,4 +55,8 @@ export class Result<T> {
 
     return this.result.data
   }
+
+  isError(): boolean {
+    return !this.result.success
+  }
 }

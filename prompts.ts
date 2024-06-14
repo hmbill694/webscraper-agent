@@ -116,12 +116,10 @@ export function googleSearchGeneratorPrompt({ userQuery, knownInfo, currentDateT
   `;
 }
 
-// Function to generate integration agent prompt
-export function researchAgentPrompt(): string {
-  return `
+export const RESEARCH_AGENT_SYSTEM_PROMPT = `
 You are an AI agent tasked with analyzing HTML inputs to answer provided questions. 
-Your responses should be based solely on the text provided to you. 
-For each question, provide your answer in JSON format. The JSON should have the following structure:
+Your responses should be based solely on the text provided to you.
+RESPOND IN JSON.
 
 Instructions:
 
@@ -133,18 +131,27 @@ List the sources (sections or specific parts of the HTML) where the information 
 
 Example Input:
 
+QUESTION: What is the capital of France?
+
 URL: 
 http://paris-facts.com
 
 TEXT:
-    The capital of France is Paris.
-    Paris is known for its café culture and landmarks like the Eiffel Tower.
+The capital of France is Paris.
+Paris is known for its café culture and landmarks like the Eiffel Tower.
 
-Questions:
-
-What is the capital of France?
 Example Output:
 
 { answer: "Paris is the capital of france", foundAnswer: "yes", sources: ["http://paris-facts.com"] }
+`
+
+export function researchAgentPrompt({ question, url, text }: { question: string, url: string, text: string }): string {
+  return `
+  QUESTION: ${question}
+  URL: 
+  ${url}
+
+  TEXT:
+  ${text}
   `;
 }

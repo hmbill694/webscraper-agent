@@ -3,7 +3,7 @@ import * as cheerio from 'cheerio';
 import { Result } from './result';
 
 export default class WebScraper {
-  async run(browser: Browser, url: string): Promise<string> {
+  private async run(browser: Browser, url: string): Promise<string> {
     const page = await browser.newPage();
 
     const res = await page.goto(url, { timeout: 5000 });
@@ -67,9 +67,5 @@ function cleanHTML(html: string): string {
     .trim()
     .slice(0, 4000);
 
-  console.log(`Normalized content: ${normalizedContent}`)
-
-  // Return the cleaned and optimized HTML
-  console.log(normalizedContent)
   return normalizedContent;
 }

@@ -1,14 +1,16 @@
 import type { ProtoClient } from "./open-ai-client";
 
+const debug = true
+
 export default class Agent {
   private client: ProtoClient;
   private systemPrompt: string;
   private verbose: boolean;
 
-  constructor(client: ProtoClient, systemPrompt: string, verbose: boolean = false) {
+  constructor(client: ProtoClient, systemPrompt: string) {
     this.client = client;
     this.systemPrompt = systemPrompt;
-    this.verbose = verbose;
+    this.verbose = debug;
   }
 
   async run(query: string): Promise<string> {

@@ -1,10 +1,9 @@
 import Agent from "./agent";
 import GoogleSearcher from "./google-searcher";
 import OpenAIClient from "./open-ai-client";
-import { GOOGLE_SEARCH_GENERATOR_SYSTEM_PROMPT, QUESTION_PROCESSOR_AGENT_SYSTEM_PROMPT, googleSearchGeneratorPrompt, questionProcessorAgentPrompt, researchAgentPrompt } from "./prompts";
-import { questionProcessorResponseExtractor, searchQueryExtractor } from "./response-extractor";
+import { GOOGLE_SEARCH_GENERATOR_SYSTEM_PROMPT, QUESTION_PROCESSOR_AGENT_SYSTEM_PROMPT, RESEARCH_AGENT_SYSTEM_PROMPT, googleSearchGeneratorPrompt, questionProcessorAgentPrompt, researchAgentPrompt } from "./prompts";
+import { questionProcessorResponseExtractor, researchAgentExtractor, searchQueryExtractor } from "./response-extractor";
 import { Result } from "./result";
-import { trace } from "./utils";
 import WebScraper from "./web-scraper";
 
 const apiKey = process.env.OPEN_AI_API_KEY ?? "";
@@ -15,7 +14,7 @@ const client = new OpenAIClient(apiKey, 0, orgId, projectId);
 
 const currentUtcDateTime = new Date().toISOString();
 
-const prompt = "How large is the Pacific Ocean in miles?";
+const prompt = "How many seasons is the show that features Omni-man?";
 
 const processor = new Agent(client, QUESTION_PROCESSOR_AGENT_SYSTEM_PROMPT)
 
@@ -27,13 +26,16 @@ const questionChain = processorResult
   .map(questionProcessorResponseExtractor)
   .getOrThrow()
 
-let knownInfo: { question: string, answer: string }[] = []
 
 const searchQueryGenerator = new Agent(client, GOOGLE_SEARCH_GENERATOR_SYSTEM_PROMPT)
 
 const googleSearcher = new GoogleSearcher(process.env.SERPER_API_KEY ?? "")
 
 const webScraper = new WebScraper()
+
+const researchAgent = new Agent(client, RESEARCH_AGENT_SYSTEM_PROMPT)
+
+let knownInfo: { question: string, answer: string, sources: string[] }[] = []
 
 for (const { question, dependsOn } of questionChain.subQuestions) {
   const googleQueryResult = await Result.fromAsync(() =>
@@ -48,5 +50,22 @@ for (const { question, dependsOn } of questionChain.subQuestions) {
 
   const researchCandiates = googleSearchResult.getOrThrow()
 
+  for (const { link } of researchCandiates.slice(0, 3)) {
+    const searchResult = await webScraper.scrapeUrl(link)
 
+    if (searchResult.isError()) {
+      continue;
+    }
+
+    const researchAgentResult = await Result.fromAsync(() => researchAgent.run(researchAgentPrompt({ question, url: link, text: searchResult.getOrThrow() })))
+
+    const { foundAnswer, answer, sources } = researchAgentResult.map(researchAgentExtractor).getOrThrow()
+
+    if (foundAnswer === "yes") {
+      knownInfo.push({ question, answer, sources })
+      break;
+    }
+  }
 }
+
+console.log(knownInfo)

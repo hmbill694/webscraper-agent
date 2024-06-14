@@ -1,5 +1,4 @@
 import axios from 'axios';
-import type { GoogleSearchAgentResponse } from './response-extractor';
 
 const SEPER_SEARCH_URL = "https://google.serper.dev/search";
 

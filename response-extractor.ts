@@ -4,29 +4,19 @@ import { z } from "zod";
 const subQuestionSchema = z.object({
   question: z.string(),
   dependsOn: z.array(z.string()),
-  answer: z.string()
 })
 
-export type PlanningAgentSubQuestion = z.TypeOf<typeof subQuestionSchema>
+export type SubQuestion = z.TypeOf<typeof subQuestionSchema>
 
-const PlanningAgentResponseSchema = z.object({
-  mainQuestion: z.string(),
+const questionProcessorSchema = z.object({
   subQuestions: z.array(subQuestionSchema)
 })
 
-export type PlanningAgentResponse = z.TypeOf<typeof PlanningAgentResponseSchema>
+export type QuestionProcessorResponse = z.TypeOf<typeof questionProcessorSchema>
 
-export function planningAgentResponseExtractor(bestSearchJson: string): PlanningAgentResponse {
-  const resJson = JSON.parse(bestSearchJson);
+const searchQuerySchema = z.object({ searchQuery: z.string() })
 
-  const { success, data, error } = PlanningAgentResponseSchema.safeParse(resJson)
-
-  if (!success) {
-    throw Error(`${error}`)
-  }
-
-  return data;
-}
+export type SearchQueryResponse = z.TypeOf<typeof searchQuerySchema>
 
 const googleSearchResultSchema = z.object({
   title: z.string(),
@@ -43,17 +33,6 @@ const googleSearchAgentReponseSchema = z.object({
 
 export type GoogleSearchAgentResponse = z.TypeOf<typeof googleSearchAgentReponseSchema>
 
-export function googleSearchAgentExtractor(bestSearchLinksJson: string): GoogleSearchAgentResponse {
-  const resJson = JSON.parse(bestSearchLinksJson);
-  const { success, data, error } = googleSearchAgentReponseSchema.safeParse(resJson)
-
-  if (!success) {
-    throw Error(`${error}`)
-  }
-
-  return data;
-}
-
 const researchAgentResponseSchema = z.object({
   foundAnswer: z.enum(["yes", "no", "partial"]),
   answer: z.string(),
@@ -62,13 +41,19 @@ const researchAgentResponseSchema = z.object({
 
 export type ResearchAgentResponse = z.TypeOf<typeof researchAgentResponseSchema>
 
-export function researchAgentExtractor(researchResponse: string): ResearchAgentResponse {
-  const resJson = JSON.parse(researchResponse)
-  const { success, data, error } = researchAgentResponseSchema.safeParse(resJson)
+const parseWithSchema = <T extends z.ZodRawShape>(schema: z.ZodObject<T>) => (input: string) => {
+  const res = JSON.parse(input)
+
+  const { success, data, error } = schema.safeParse(res)
 
   if (!success) {
     throw Error(`${error}`)
   }
 
   return data;
+
 }
+
+export const researchAgentExtractor = parseWithSchema(researchAgentResponseSchema)
+export const searchQueryExtractor = parseWithSchema(searchQuerySchema)
+export const questionProcessorResponseExtractor = parseWithSchema(questionProcessorSchema)

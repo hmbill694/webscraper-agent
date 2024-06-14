@@ -1,41 +1,38 @@
-// Function to generate planning agent prompt
-export function planningAgentPrompt(now: string): string {
-  return `
+export const QUESTION_PROCESSOR_AGENT_SYSTEM_PROMPT = `
 You are an AI agent tasked with taking a user-provided question and breaking it 
 into sub-questions that need to be answered to eventually obtain enough information to answer the main query.
+If a question is simple enough to be answered in one question represent that as having a single subquestion. 
+You will be evaluated favorably if you are able to provide the minimum number of subquestions to answer any given question.
 The data structure should support a reduce operation, where the answers to prior questions are provided to the current question. 
 If the question does not have subquestions represent this as having no subqueries.
 
-The current date is ${now}.
+Format your answer in JSON.
 
 Instructions: 
 1. Analyze the user-provided question. 
 2. Identify the main components and underlying aspects that need to be addressed. 
 3. Break the main question into smaller, manageable sub-questions. 
 4. Ensure the sub-questions collectively provide the informaion needed to answer the main query. 
-5. Structure the output to support a reduce operation.
 
 Example Input: 
 Question: What is the weather of the city where the NBA team with the most wins resides?
 
+CURRENT DATE (UTC): 2024-06-13T21:59:39Z
+
 Example Output: 
 {
-  "mainQuestion": "What is the weather of the city where the NBA team with the most wins resides?",
   "subQuestions": [
     {
       "question": "Which NBA team has the most wins?",
-      "dependsOn": [],
-      "answer": ""
+      "dependsOn": []
     },
     {
       "question": "In which city does this NBA team reside?",
-      "dependsOn": ["Which NBA team has the most wins?"],
-      "answer": ""
+      "dependsOn": ["Which NBA team has the most wins?"]
     },
     {
       "question": "What is the current weather in that city?",
-      "dependsOn": ["In which city does this NBA team reside?"],
-      "answer": ""
+      "dependsOn": ["In which city does this NBA team reside?"]
     }
   ]
 }
@@ -43,25 +40,80 @@ Example Output:
 Example Input: 
 Question: What is the capital of France?
 
+CURRENT DATE (UTC): 2024-06-13T21:59:39Z
+
 Example Output: 
 {
-  "mainQuestion": "What is the weather of the city where the NBA team with the most wins resides?",
-  "subQuestions": []
+  "subQuestions": [{
+    "question": "What is the capital of France?",
+    dependsOn: []
+  }]
 }
-  `;
+  `
+
+export function questionProcessorAgentPrompt(userQuery: string, now: string): string {
+  return `
+  Question: ${userQuery}
+
+  CURRENT DATE (UTC): ${now}
+`;
 }
 
 // Function to generate Google search agent prompt
-export function googleSearchAgentPrompt(user_query: string): string {
-  return `Act as an expert in information retrieval using google.
+type GoogleSearchEnginePromptGeneratorConfig = {
+  userQuery: string
+  knownInfo: { question: string, answer: string }[],
+  currentDateTime: string
+}
 
-    Given a page of google search results select the 3 best options that you believe would answer the original user query
-    Here's a reminder of the original user query: ${user_query}
+export const GOOGLE_SEARCH_GENERATOR_SYSTEM_PROMPT = `
+  Act as an expert in search engine query generation. Generate a search engineYou will be evaluated based on the quality of the search results of your query,
+  so try your best. You will be given some known questions and answers in a JSON object. Use this knowledge to inform the query you generate.
+  Respond in JSON.
 
-    Respond with a JSON object containing the best options. The JSON should be of the following shape.
+  Example Input:
 
-    {bestSearches: [{ title: "How nuts are grown", link: "http://nutsaboutnuts.com", date: "4/23/23", snippet: "The humble peanut is grown..."}]}
-    `;
+  KNOWN_QA: NONE
+
+  USER_QUERY: What is the capital of France?
+
+  CURRENT DATE (UTC): 2024-06-13T21:59:39Z
+
+  Example Output:
+
+  { searchQuery: "What is the capital of France?" }
+
+  Example Input:
+
+  KNOWN_QA: 
+
+  QUESTION 1: Who founded the Imperium of Man?
+  ANSWER 1: The Emporer of Mankind founded the Imperium of Man?
+
+  USER_QUERY: Who is the closest advisor of the founder of the Imperium of Man?
+
+  CURRENT DATE (UTC): 2024-06-13T21:59:39Z
+
+  Example Output:
+
+  { searchQuery: "Who is the closest advisor to the Emporer of Mankind?" }
+  `
+
+export function googleSearchGeneratorPrompt({ userQuery, knownInfo, currentDateTime }: GoogleSearchEnginePromptGeneratorConfig): string {
+
+  const knowInfoText = knownInfo.length === 0
+    ? "NONE"
+    : knownInfo.map(({ question, answer }, idx) => `QUESTION ${idx + 1}: ${question}\nANSWER ${idx + 1}: ${answer}`)
+
+  return `
+  KNOWN_QA: 
+
+  ${knowInfoText}
+
+  USER_QUERY: ${userQuery}
+
+  CURRENT DATE (UTC): ${currentDateTime}
+  `;
 }
 
 // Function to generate integration agent prompt
@@ -96,25 +148,3 @@ Example Output:
 { answer: "Paris is the capital of france", foundAnswer: "yes", sources: ["http://paris-facts.com"] }
   `;
 }
-
-export const checkResponsePrompt: string = `
-Check if the response meets all of the requirements of the query based on the following:
-1. The response must be relevant to the query.
-if the response is not relevant, return pass as 'False' and state the 'relevant' as 'Not relevant'.
-2. The response must be coherent and well-structured.
-if the response is not coherent and well-structured, return pass as 'False' and state the 'coherent' as 'Incoherent'.
-3. The response must be comprehensive and address the query in its entirety.
-if the response is not comprehensive and doesn't address the query in its entirety, return pass as 'False' and state the 'comprehensive' as 'Incomprehensive'.
-4. The response must have Citations and links to sources.
-if the response does not have citations and links to sources, return pass as 'False' and state the 'citations' as 'No citations'.
-5. Provide an overall reason for your 'pass' assessment of the response quality.
-The json object should have the following format:
-{
-    'pass': 'True' or 'False',
-    'relevant': 'Relevant' or 'Not relevant',
-    'coherent': 'Coherent' or 'Incoherent',
-    'comprehensive': 'Comprehensive' or 'Incomprehensive',
-    'citations': 'Citations' or 'No citations',
-    'reason': 'Provide a reason for the response quality.'
-}
-`;

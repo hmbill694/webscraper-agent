@@ -1,9 +1,10 @@
 import Agent from "./agent";
 import GoogleSearcher from "./google-searcher";
 import OpenAIClient from "./open-ai-client";
-import { googleSearchAgentPrompt, planningAgentPrompt, researchAgentPrompt } from "./prompts";
-import { googleSearchAgentExtractor, planningAgentResponseExtractor, researchAgentExtractor, type PlanningAgentResponse, type PlanningAgentSubQuestion } from "./response-extractor";
-import { Err, Ok, getOrThrow } from "./utils";
+import { GOOGLE_SEARCH_GENERATOR_SYSTEM_PROMPT, QUESTION_PROCESSOR_AGENT_SYSTEM_PROMPT, googleSearchGeneratorPrompt, questionProcessorAgentPrompt, researchAgentPrompt } from "./prompts";
+import { questionProcessorResponseExtractor, searchQueryExtractor } from "./response-extractor";
+import { Result } from "./result";
+import { trace } from "./utils";
 import WebScraper from "./web-scraper";
 
 const apiKey = process.env.OPEN_AI_API_KEY ?? "";
@@ -14,111 +15,38 @@ const client = new OpenAIClient(apiKey, 0, orgId, projectId);
 
 const currentUtcDateTime = new Date().toISOString();
 
-const prompt = "How old is the current pope?";
+const prompt = "How large is the Pacific Ocean in miles?";
 
+const processor = new Agent(client, QUESTION_PROCESSOR_AGENT_SYSTEM_PROMPT)
 
-try {
-  const planningAgentResult = await planningPipeline(prompt, currentUtcDateTime)
+const processorResult = await Result.fromAsync(() =>
+  processor.run(questionProcessorAgentPrompt(prompt, currentUtcDateTime))
+)
 
-  const planningAgentResponse = getOrThrow(planningAgentResult)
+const questionChain = processorResult
+  .map(questionProcessorResponseExtractor)
+  .getOrThrow()
 
-  const answerResult = await executePlan(planningAgentResponse)
+let knownInfo: { question: string, answer: string }[] = []
 
-} catch (e) {
-  console.error(e);
-}
+const searchQueryGenerator = new Agent(client, GOOGLE_SEARCH_GENERATOR_SYSTEM_PROMPT)
 
-async function planningPipeline(userQuestion: string, currentDateTimeString: string) {
-  try {
-    const planningAgent = new Agent(
-      client,
-      planningAgentPrompt(currentDateTimeString),
-      true
-    );
+const googleSearcher = new GoogleSearcher(process.env.SERPER_API_KEY ?? "")
 
-    return Ok(planningAgentResponseExtractor(await planningAgent.run(userQuestion)))
+const webScraper = new WebScraper()
 
-  } catch {
-    return Err("Planning agent could not formulate plan to resolve this query")
-  }
-}
+for (const { question, dependsOn } of questionChain.subQuestions) {
+  const googleQueryResult = await Result.fromAsync(() =>
+    searchQueryGenerator.run(googleSearchGeneratorPrompt({ userQuery: question, knownInfo, currentDateTime: currentUtcDateTime }))
+  )
 
+  const { searchQuery } = googleQueryResult
+    .map(searchQueryExtractor)
+    .getOrThrow()
 
-async function searchPipeline(searchQuery: string) {
-  const googleSearchTool = new GoogleSearcher(process.env.SERPER_API_KEY ?? "");
+  const googleSearchResult = await Result.fromAsync(() => googleSearcher.searchGoogle(searchQuery))
 
-  const googleSearches = await googleSearchTool.searchGoogle(searchQuery)
+  const researchCandiates = googleSearchResult.getOrThrow()
 
-  const webScraper = new WebScraper()
-
-  const researchAgent = new Agent(client, researchAgentPrompt(), true)
-
-  if (googleSearches.length === 0) {
-    throw Error("No search results provided")
-  }
-
-  const topThreeSearches = googleSearches.slice(0, 3)
-
-  for (const { link } of topThreeSearches) {
-    const researchContent = await webScraper.scrapeUrl(link)
-
-    if (!researchContent.success) {
-      console.log("An error has occured while researching, we could not scrape " + link)
-      console.log(console.log(researchContent.error))
-      continue
-    }
-
-    const researchAgentResponse = researchAgentExtractor(await researchAgent.run(`
-        LINK: ${link}
-
-        TEXT: 
-        ${researchContent.data}
-    `))
-
-    if (researchAgentResponse.foundAnswer === "no" || researchAgentResponse.foundAnswer === "partial") {
-      continue;
-    }
-
-    return Ok(researchAgentResponse)
-  }
-
-  throw Err("Was unable to find answer to question")
-}
-
-async function executePlan(plan: PlanningAgentResponse) {
-  const questionTextToQuestionMap = plan.subQuestions.reduce((acc, question) => {
-    acc[question.question] = question
-    return acc
-  }, {} as Record<string, PlanningAgentSubQuestion>)
-
-  if (plan.subQuestions.length === 0) {
-    const searchResult = await searchPipeline(plan.mainQuestion)
-    const { answer } = getOrThrow(searchResult)
-    return Ok(answer)
-  }
-
-  for (const [idx, subQuery] of plan.subQuestions.entries()) {
-    const priorQuestions = (idx === 0 ? [] : plan.subQuestions.slice(0, idx))
-
-    const priorAnsweredQuestions = priorQuestions
-      .map(priorAnswer =>
-        `QUESTION: ${priorAnswer.question}\n ANSWER: ${questionTextToQuestionMap[priorAnswer.question] ?? "No answer yet"}`
-      ).join("")
-
-    const searchResult = await searchPipeline(subQuery.question)
-    const { answer: searchAnswer } = getOrThrow(searchResult)
-
-    subQuery.answer = searchAnswer
-  }
-
-  console.log(plan.subQuestions.map(ele => `Question ${ele.question} \n Answer: ${ele.answer}`).join("\n"))
-
-  // const formatPriorQuestionPrompts = ({ question, answer }: PlanningAgentSubQuestion) => `
-  // QUESTION: 
-  // ${question}
-
-  // ANSWER:
-  // ${answer}
-  // `
 
 }

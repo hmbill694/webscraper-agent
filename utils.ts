@@ -1,31 +1,3 @@
-export type Err = { success: false, error: string }
-export type Ok<T> = { success: true, data: T }
-
-export type Result<T> = Ok<T> | Err
-
-export function Err(message: string): Err {
-  return {
-    success: false,
-    error: message
-  }
-}
-
-export function Ok<T>(data: T): Ok<T> {
-  return {
-    success: true,
-    data
-  }
-}
-
-export function getOrThrow<T>(result: Result<T>): T {
-  if (!result.success) {
-    throw new Error(result.error)
-  }
-
-  return result.data
-}
-
-
 export function exponentialBackoff<T>(
   fn: () => Promise<T>,
   retries: number,
@@ -48,4 +20,9 @@ export function exponentialBackoff<T>(
 
     attempt(retries);
   });
+}
+
+export const trace = <T>(val: T) => {
+  console.log(val)
+  return val
 }

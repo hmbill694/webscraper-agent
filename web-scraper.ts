@@ -1,6 +1,6 @@
 import { chromium, type Browser } from 'playwright';
-import { Err, Ok, type Result } from './utils';
 import * as cheerio from 'cheerio';
+import { Result } from './result';
 
 export default class WebScraper {
   async run(browser: Browser, url: string): Promise<string> {
@@ -22,9 +22,9 @@ export default class WebScraper {
     const playwright = await chromium.launch();
     try {
       const html = await this.run(playwright, url)
-      return Ok(html);
+      return Result.Ok(html)
     } catch (e) {
-      return Err(`${e}`)
+      return Result.Err(`${e}`)
     } finally {
       await playwright.close();
     }

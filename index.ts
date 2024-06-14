@@ -14,7 +14,7 @@ const client = new OpenAIClient(apiKey, 0, orgId, projectId);
 
 const currentUtcDateTime = new Date().toISOString();
 
-const prompt = "When is the debate between Trump and Biden?";
+const prompt = "What is the currency in the country that consumes the most cinnomin?";
 
 const processor = new Agent(client, QUESTION_PROCESSOR_AGENT_SYSTEM_PROMPT)
 

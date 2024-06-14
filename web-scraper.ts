@@ -2,11 +2,24 @@ import { chromium, type Browser } from 'playwright';
 import * as cheerio from 'cheerio';
 import { Result } from './result';
 
+type WebScraperInit = {
+  scrapeAmount?: number
+  timeout?: number
+}
+
 export default class WebScraper {
+  scrapeAmount: number;
+  timeout: number;
+
+  constructor({ scrapeAmount = 4000, timeout = 5000 }: WebScraperInit = {}) {
+    this.scrapeAmount = scrapeAmount
+    this.timeout = timeout
+  }
+
   private async run(browser: Browser, url: string): Promise<string> {
     const page = await browser.newPage();
 
-    const res = await page.goto(url, { timeout: 5000 });
+    const res = await page.goto(url, { timeout: this.timeout });
 
     const status = res?.status() ?? 0
     if (!status || status !== 200) {
@@ -15,7 +28,7 @@ export default class WebScraper {
 
     const pageHtml = await page.innerHTML('body')
 
-    return cleanHTML(pageHtml);
+    return this.cleanHTML(pageHtml);
   }
 
   async scrapeUrl(url: string): Promise<Result<string>> {
@@ -30,42 +43,43 @@ export default class WebScraper {
     }
 
   }
-}
 
-function cleanHTML(html: string): string {
-  // Load the HTML into cheerio
-  const $ = cheerio.load(html);
 
-  // Remove all script, style, and non-informative elements
-  $('script, style, iframe, img, video, nav, footer, header, aside').remove();
-  // Remove comments
-  $('*')
-    .contents()
-    .filter(function () {
-      return this.type === 'comment';
-    })
-    .remove();
+  private cleanHTML(html: string): string {
+    // Load the HTML into cheerio
+    const $ = cheerio.load(html);
 
-  // Decode HTML entities using Cheerio
-  $('body').html($('body').html() || '').html();
+    // Remove all script, style, and non-informative elements
+    $('script, style, iframe, img, video, nav, footer, header, aside').remove();
+    // Remove comments
+    $('*')
+      .contents()
+      .filter(function () {
+        return this.type === 'comment';
+      })
+      .remove();
 
-  // Remove redundant tags (e.g., empty divs or spans)
-  $('div:empty, span:empty').remove();
+    // Decode HTML entities using Cheerio
+    $('body').html($('body').html() || '').html();
 
-  // Extract main content: This is a simple example; you might need more sophisticated logic
-  const mainContent = $('body')
-    .contents()
-    .map(function () {
-      return $(this).prop("innerText")
-    })
-    .get()
-    .join('')
+    // Remove redundant tags (e.g., empty divs or spans)
+    $('div:empty, span:empty').remove();
 
-  // Normalize whitespace
-  const normalizedContent = (mainContent || '')
-    .replace(/\s+/g, ' ') // Replace multiple whitespace with a single space
-    .trim()
-    .slice(0, 4000);
+    // Extract main content: This is a simple example; you might need more sophisticated logic
+    const mainContent = $('body')
+      .contents()
+      .map(function () {
+        return $(this).prop("innerText")
+      })
+      .get()
+      .join('')
 
-  return normalizedContent;
+    // Normalize whitespace
+    const normalizedContent = (mainContent || '')
+      .replace(/\s+/g, ' ') // Replace multiple whitespace with a single space
+      .trim()
+      .slice(0, this.scrapeAmount);
+
+    return normalizedContent;
+  }
 }

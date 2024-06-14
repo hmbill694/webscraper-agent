@@ -3,7 +3,6 @@ import { z } from "zod";
 
 const subQuestionSchema = z.object({
   question: z.string(),
-  dependsOn: z.array(z.string()),
 })
 
 export type SubQuestion = z.TypeOf<typeof subQuestionSchema>

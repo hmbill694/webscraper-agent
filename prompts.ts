@@ -23,16 +23,13 @@ Example Output:
 {
   "subQuestions": [
     {
-      "question": "Which NBA team has the most wins?",
-      "dependsOn": []
+      "question": "Which NBA team has the most wins?"
     },
     {
-      "question": "In which city does this NBA team reside?",
-      "dependsOn": ["Which NBA team has the most wins?"]
+      "question": "In which city does this NBA team reside?"
     },
     {
-      "question": "What is the current weather in that city?",
-      "dependsOn": ["In which city does this NBA team reside?"]
+      "question": "What is the current weather in that city?"
     }
   ]
 }
@@ -45,8 +42,7 @@ CURRENT DATE (UTC): 2024-06-13T21:59:39Z
 Example Output: 
 {
   "subQuestions": [{
-    "question": "What is the capital of France?",
-    dependsOn: []
+    "question": "What is the capital of France?"
   }]
 }
   `

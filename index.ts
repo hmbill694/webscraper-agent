@@ -37,7 +37,7 @@ const researchAgent = new Agent(client, RESEARCH_AGENT_SYSTEM_PROMPT)
 
 let knownInfo: { question: string, answer: string, sources: string[] }[] = []
 
-for (const { question, dependsOn } of questionChain.subQuestions) {
+for (const { question } of questionChain.subQuestions) {
   const googleQueryResult = await Result.fromAsync(() =>
     searchQueryGenerator.run(googleSearchGeneratorPrompt({ userQuery: question, knownInfo, currentDateTime: currentUtcDateTime }))
   )

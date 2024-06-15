@@ -23,3 +23,14 @@ bun run index.ts
 ```
 
 This project was created using `bun init` in bun v1.1.9. [Bun](https://bun.sh) is a fast all-in-one JavaScript runtime.
+
+
+## Example 
+
+```bash
+What is your question: What is the capital of France?
+According to my research, Paris is the capital and largest city of France [1].
+
+Sources
+[1] - https://en.wikipedia.org/wiki/Paris
+```

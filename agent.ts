@@ -1,6 +1,6 @@
 import type { ProtoClient } from "./open-ai-client";
 
-const debug = true
+const debug = false
 
 export default class Agent {
   private client: ProtoClient;

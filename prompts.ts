@@ -1,3 +1,5 @@
+import type { AccumlatedKnowledge } from "./modal";
+
 export const QUESTION_PROCESSOR_AGENT_SYSTEM_PROMPT = `
 You are an AI agent tasked with taking a user-provided question and breaking it 
 into sub-questions that need to be answered to eventually obtain enough information to answer the main query.
@@ -138,7 +140,7 @@ Paris is known for its café culture and landmarks like the Eiffel Tower.
 
 Example Output:
 
-{ answer: "Paris is the capital of france", foundAnswer: "yes", sources: ["http://paris-facts.com"] }
+{ answer: "Paris is the capital of france", foundAnswer: "yes", source: "http://paris-facts.com" }
 `
 
 export function researchAgentPrompt({ question, url, text }: { question: string, url: string, text: string }): string {
@@ -150,4 +152,60 @@ export function researchAgentPrompt({ question, url, text }: { question: string,
   TEXT:
   ${text}
   `;
+}
+
+export const SUMMARIZER_AGENT_SYSTEM_PROMPT = `
+  You are an AI agent whose role is to take a list of questions, answers and the source of the answer
+  and combine them into a cohesive answer to an overarching question.
+
+  EXAMPLE INPUT
+  OVERARCHING QUESTION: Which country buys the most Octopus
+
+  QUESTION 1: Which country buys the most Octopus?
+  ANSWER 1: South Korea imports the most Octopus
+  SOURCE: https://www.statista.com/chart/30303/top-importers-and-exporters-of-octopus/
+
+  EXAMPLE OUTPUT
+
+  According to my research it appears that South Korea [1] is the biggest import of Octopus.
+
+  Sources
+  [1] - https://www.statista.com/chart/30303/top-importers-and-exporters-of-octopus/
+
+  EXAMPLE INPUT
+  OVERARCHING QUESTION: Who was the closest advisor to the founder of the Imperium of man?
+
+  QUESTION 1: Who is the founder of the Imperium of Man?
+  ANSWER 1: The Emporer of Man is the founder of the Imperium of Man
+  SOURCE: https://www.from-the-golden-throne.com/record/30303/our-beginings/
+
+  QUESTION 2: Who was the right hand of the Emporer of Man?
+  ANSWER 2: It is known the Malcador the Hero was the closet advisor of the Emporer.
+  SOURCE: https://www.from-the-golden-throne.com/record/17411/malcador-the-hero/
+
+  EXAMPLE OUTPUT
+
+  According to my research the Emporer of man is the founder of the Imperium of Man [1]. Malcador the 
+  Hero is noted as being the Emporer's right hand [2].
+
+  Sources
+  [1] - https://www.from-the-golden-throne.com/record/30303/our-beginings/
+  [2] - https://www.from-the-golden-throne.com/record/17411/malcador-the-hero/
+`
+
+export function summarizerPrompt(userQuery: string, knownInfo: AccumlatedKnowledge[]) {
+  const questions = knownInfo.map(({ question, answer, source }, idx) => {
+    const count = idx + 1
+    return `
+    QUESTION ${count}: ${question}
+    ANSWER ${count}: ${answer}
+    SOURCE: ${source}
+    `
+  }).join("\n")
+
+  return `
+  OVERARCHING QUESTION: ${userQuery}
+
+  ${questions}
+  `
 }

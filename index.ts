@@ -1,22 +1,29 @@
 import Agent from "./agent";
+import { processor, researchAgent, searchQueryGenerator, summerizerAgent } from "./agents";
 import GoogleSearcher from "./google-searcher";
+import type { AccumlatedKnowledge } from "./modal";
 import OpenAIClient from "./open-ai-client";
-import { GOOGLE_SEARCH_GENERATOR_SYSTEM_PROMPT, QUESTION_PROCESSOR_AGENT_SYSTEM_PROMPT, RESEARCH_AGENT_SYSTEM_PROMPT, googleSearchGeneratorPrompt, questionProcessorAgentPrompt, researchAgentPrompt } from "./prompts";
+import {
+  GOOGLE_SEARCH_GENERATOR_SYSTEM_PROMPT,
+  QUESTION_PROCESSOR_AGENT_SYSTEM_PROMPT,
+  RESEARCH_AGENT_SYSTEM_PROMPT,
+  googleSearchGeneratorPrompt,
+  questionProcessorAgentPrompt,
+  researchAgentPrompt,
+  summarizerPrompt
+} from "./prompts";
 import { questionProcessorResponseExtractor, researchAgentExtractor, searchQueryExtractor } from "./response-extractor";
 import { Result } from "./result";
-import WebScraper from "./web-scraper";
-
-const apiKey = process.env.OPEN_AI_API_KEY ?? "";
-const projectId = process.env.OPEN_AI_PROJECT_ID ?? "";
-const orgId = process.env.OPEN_AI_ORG_ID ?? "";
-
-const client = new OpenAIClient(apiKey, 0, orgId, projectId);
+import { googleSearcher, webScraper } from "./tools";
 
 const currentUtcDateTime = new Date().toISOString();
 
-const prompt = "What is the currency in the country that consumes the most cinnomin?";
-
-const processor = new Agent(client, QUESTION_PROCESSOR_AGENT_SYSTEM_PROMPT)
+let prompt = "";
+process.stdout.write("What is your question: ");
+for await (const line of console) {
+  prompt = line;
+  break;
+}
 
 const processorResult = await Result.fromAsync(() =>
   processor.run(questionProcessorAgentPrompt(prompt, currentUtcDateTime))
@@ -26,17 +33,7 @@ const questionChain = processorResult
   .map(questionProcessorResponseExtractor)
   .getOrThrow()
 
-
-const searchQueryGenerator = new Agent(client, GOOGLE_SEARCH_GENERATOR_SYSTEM_PROMPT)
-
-const googleSearcher = new GoogleSearcher(process.env.SERPER_API_KEY ?? "")
-
-const webScraper = new WebScraper()
-
-const researchAgent = new Agent(client, RESEARCH_AGENT_SYSTEM_PROMPT)
-
-let knownInfo: { question: string, answer: string, sources: string[] }[] = []
-
+let knownInfo: AccumlatedKnowledge[] = []
 for (const { question } of questionChain.subQuestions) {
   const googleQueryResult = await Result.fromAsync(() =>
     searchQueryGenerator.run(googleSearchGeneratorPrompt({ userQuery: question, knownInfo, currentDateTime: currentUtcDateTime }))
@@ -59,13 +56,16 @@ for (const { question } of questionChain.subQuestions) {
 
     const researchAgentResult = await Result.fromAsync(() => researchAgent.run(researchAgentPrompt({ question, url: link, text: searchResult.getOrThrow() })))
 
-    const { foundAnswer, answer, sources } = researchAgentResult.map(researchAgentExtractor).getOrThrow()
+    const { foundAnswer, answer, source } = researchAgentResult.map(researchAgentExtractor).getOrThrow()
 
     if (foundAnswer === "yes") {
-      knownInfo.push({ question, answer, sources })
+      knownInfo.push({ question, answer, source })
       break;
     }
   }
 }
 
-console.log(knownInfo)
+const finalResponse = await summerizerAgent.run(summarizerPrompt(prompt, knownInfo))
+
+
+console.log(finalResponse)

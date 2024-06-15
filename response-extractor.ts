@@ -35,7 +35,7 @@ export type GoogleSearchAgentResponse = z.TypeOf<typeof googleSearchAgentReponse
 const researchAgentResponseSchema = z.object({
   foundAnswer: z.enum(["yes", "no", "partial"]),
   answer: z.string(),
-  sources: z.array(z.string())
+  source: z.string()
 })
 
 export type ResearchAgentResponse = z.TypeOf<typeof researchAgentResponseSchema>
